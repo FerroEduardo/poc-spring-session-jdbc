@@ -1,34 +1,26 @@
 package org.example.pocspringsessionjdbc.config;
 
-import org.example.pocspringsessionjdbc.filter.CustomAuthenticationFailureHandler;
+import org.example.pocspringsessionjdbc.filter.CustomOAuthAuthenticationFilter;
 import org.example.pocspringsessionjdbc.filter.CustomUsernamePasswordAuthenticationFilter;
+import org.example.pocspringsessionjdbc.filter.DefaultAuthenticationFailureHandler;
+import org.example.pocspringsessionjdbc.filter.RedirectAuthenticationSuccessHandler;
+import org.example.pocspringsessionjdbc.service.GoogleOAuthService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.session.SessionRegistry;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.ForwardAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.authentication.session.*;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
-import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
-import org.springframework.session.security.SpringSessionBackedSessionRegistry;
-
-import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -37,8 +29,12 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(
             HttpSecurity http,
             AuthenticationManager authenticationManager,
-            SessionAuthenticationStrategy authenticationStrategy
+            @Qualifier("oauth") AuthenticationManager oauthAuthenticationManager,
+            SessionAuthenticationStrategy authenticationStrategy,
+            GoogleOAuthService googleOAuthService
     ) throws Exception {
+        var authenticationSuccessHandler = new RedirectAuthenticationSuccessHandler("/user/me");
+        var authenticationFailureHandler = new DefaultAuthenticationFailureHandler();
 
         http
                 .addFilterAfter(
@@ -46,8 +42,19 @@ public class SecurityConfig {
                                 "/auth/sign-in",
                                 authenticationManager,
                                 authenticationStrategy,
-                                new ForwardAuthenticationSuccessHandler("/user/me"),
-                                new CustomAuthenticationFailureHandler()
+                                authenticationSuccessHandler,
+                                authenticationFailureHandler
+                        ),
+                        LogoutFilter.class
+                )
+                .addFilterAfter(
+                        new CustomOAuthAuthenticationFilter(
+                                "google",
+                                oauthAuthenticationManager,
+                                authenticationStrategy,
+                                authenticationSuccessHandler,
+                                authenticationFailureHandler,
+                                googleOAuthService
                         ),
                         LogoutFilter.class
                 )
@@ -68,8 +75,12 @@ public class SecurityConfig {
                         .sessionAuthenticationStrategy(authenticationStrategy)
                 )
                 .authorizeHttpRequests(req -> req
-                        .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/auth/sign-in", "/auth/sign-out").permitAll()
+                        .requestMatchers(
+                                "/auth/sign-in",
+                                "/auth/sign-out",
+                                "/auth/sign-in/oauth/google",
+                                "/auth/sign-in/oauth/google/callback"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 );
 
@@ -79,5 +90,20 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean("noop")
+    public PasswordEncoder noopPasswordEncoder() {
+        return new PasswordEncoder() {
+            @Override
+            public String encode(CharSequence rawPassword) {
+                return "";
+            }
+
+            @Override
+            public boolean matches(CharSequence rawPassword, String encodedPassword) {
+                return true;
+            }
+        };
     }
 }

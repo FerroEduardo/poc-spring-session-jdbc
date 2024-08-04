@@ -12,7 +12,7 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 import java.io.IOException;
 import java.util.Map;
 
-public class CustomAuthenticationFailureHandler implements AuthenticationFailureHandler {
+public class DefaultAuthenticationFailureHandler implements AuthenticationFailureHandler {
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
         ObjectMapper mapper = new ObjectMapper();
