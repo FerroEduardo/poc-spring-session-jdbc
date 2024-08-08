@@ -35,7 +35,7 @@ public class GoogleOAuthService {
 
     public String getOauthLoginPage() {
         return String.format(
-                "https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=%s&response_type=code&client_id=%s&scope=%s&access_type=offline",
+                "https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=%s&response_type=code&client_id=%s&scope=%s&access_type=offline&prompt=consent",
                 redirectUri, clientId, String.join("+", scopes)
         );
     }
