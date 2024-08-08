@@ -41,6 +41,14 @@ public class CustomOAuthAuthenticationFilter extends AbstractAuthenticationProce
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
+        // Invalidate current session if trying to log in
+        var currentSession = request.getSession(false);
+        if (currentSession != null) {
+            currentSession.invalidate();
+        }
+        // Another option could be to redirect to homepage or
+        // throw an error to prevent login with valid sessions
+
         if (provider.equals("google")) {
             String userCode = request.getParameter("code");
             Map<String, Object> profileDetails = googleOAuthService.getProfileDetails(userCode);
@@ -50,7 +58,7 @@ public class CustomOAuthAuthenticationFilter extends AbstractAuthenticationProce
                 }
                 String email = profileDetails.get("email").toString();
 //                String name = profileDetails.get("name").toString(); // given_name + family_name
-                UsernamePasswordAuthenticationToken authRequest = UsernamePasswordAuthenticationToken.authenticated(email, "", List.of());
+                UsernamePasswordAuthenticationToken authRequest = UsernamePasswordAuthenticationToken.unauthenticated(email, "");
                 setDetails(request, authRequest);
                 return getAuthenticationManager().authenticate(authRequest);
             }

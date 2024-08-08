@@ -37,6 +37,14 @@ public class CustomUsernamePasswordAuthenticationFilter extends AbstractAuthenti
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
+        // Invalidate current session if trying to log in
+        var currentSession = request.getSession(false);
+        if (currentSession != null) {
+            currentSession.invalidate();
+        }
+        // Another option could be to redirect to homepage or
+        // throw an error to prevent login with valid sessions
+
         Map<String, Object> body;
         try (InputStream inputStream = request.getInputStream()) {
             ObjectMapper mapper = new ObjectMapper();
